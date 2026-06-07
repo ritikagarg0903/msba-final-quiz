@@ -7,6 +7,19 @@ st.set_page_config(
     layout="centered",
 )
 
+st.markdown("""
+<style>
+/* Radio button option labels */
+div[data-testid="stRadio"] label p {
+    font-size: 1.05rem !important;
+}
+/* Checkbox option labels */
+div[data-testid="stCheckbox"] label p {
+    font-size: 1.05rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ─────────────────────────────────────────────
 # QUESTION BANK
 # ─────────────────────────────────────────────
