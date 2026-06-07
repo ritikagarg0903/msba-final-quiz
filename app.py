@@ -11,11 +11,11 @@ st.markdown("""
 <style>
 /* Radio button option labels */
 div[data-testid="stRadio"] label p {
-    font-size: 1.05rem !important;
+    font-size: 1.1rem !important;
 }
 /* Checkbox option labels */
 div[data-testid="stCheckbox"] label p {
-    font-size: 1.05rem !important;
+    font-size: 1.1rem !important;
 }
 </style>
 """, unsafe_allow_html=True)
