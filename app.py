@@ -820,14 +820,21 @@ def main():
         render_input(q)
 
         st.divider()
-        col1, col2, _ = st.columns([1, 1, 2])
+        col1, col2, col3 = st.columns([1.3, 1, 1])
         with col1:
             check_clicked = st.button("🔍 Check Answer", type="primary", use_container_width=True)
         with col2:
             skip_clicked = st.button("⏭️ Skip", use_container_width=True)
+        with col3:
+            back_clicked = st.button("⬅️ Back", use_container_width=True,
+                                     disabled=st.session_state.queue_pos == 0)
 
         if skip_clicked:
             go_next(active_pool)
+            st.rerun()
+
+        if back_clicked:
+            go_back()
             st.rerun()
 
         if check_clicked:
@@ -838,9 +845,16 @@ def main():
     else:
         render_result(q)
         st.divider()
-        if st.button("➡️ Next Question", type="primary"):
-            go_next(active_pool)
-            st.rerun()
+        col1, col2 = st.columns([1.3, 1])
+        with col1:
+            if st.button("➡️ Next Question", type="primary", use_container_width=True):
+                go_next(active_pool)
+                st.rerun()
+        with col2:
+            if st.button("⬅️ Back", use_container_width=True,
+                         disabled=st.session_state.queue_pos == 0):
+                go_back()
+                st.rerun()
 
 
 # ─────────────────────────────────────────────
@@ -857,10 +871,18 @@ def go_next(active_pool):
     When the queue is exhausted, reshuffle for the next round."""
     next_pos = st.session_state.queue_pos + 1
     if next_pos >= len(st.session_state.queue):
-        # All questions in this round done — reshuffle for next round
         build_queue(active_pool)
     else:
         st.session_state.queue_pos = next_pos
+    st.session_state.answered = False
+    st.session_state.user_answer = None
+    st.session_state.is_correct = None
+
+
+def go_back():
+    """Go back to the previous question in the queue (if any)."""
+    if st.session_state.queue_pos > 0:
+        st.session_state.queue_pos -= 1
     st.session_state.answered = False
     st.session_state.user_answer = None
     st.session_state.is_correct = None
