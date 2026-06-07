@@ -738,13 +738,7 @@ def main():
             st.session_state.current_q_idx = random.choice(active_pool)
     q = QUESTIONS[st.session_state.current_q_idx]
 
-    # ── Section badge ─────────────────────────
-    color = SECTION_COLORS.get(q["section"], "#6B7280")
-    st.markdown(
-        f'<span style="background:{color};color:white;padding:4px 12px;border-radius:12px;'
-        f'font-size:0.8rem;font-weight:600">{q["section"]}</span>',
-        unsafe_allow_html=True,
-    )
+    # ── Question ──────────────────────────────
     st.markdown("### " + q["question"])
     st.divider()
 
@@ -788,11 +782,20 @@ def main():
             )
             st.session_state.user_answer = response
 
-        # ── Check Answer button ───────────────
+        # ── Check Answer / Skip buttons ───────
         st.divider()
-        col1, col2 = st.columns([1, 3])
+        col1, col2, col3 = st.columns([1, 1, 2])
         with col1:
             check_clicked = st.button("🔍 Check Answer", type="primary", use_container_width=True)
+        with col2:
+            skip_clicked = st.button("⏭️ Skip", use_container_width=True)
+
+        if skip_clicked:
+            st.session_state.current_q_idx = random.choice(active_pool)
+            st.session_state.answered = False
+            st.session_state.user_answer = None
+            st.session_state.is_correct = None
+            st.rerun()
 
         if check_clicked:
             if q["type"] == "free":
