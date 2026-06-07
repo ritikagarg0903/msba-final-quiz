@@ -719,8 +719,20 @@ def init_session():
         st.session_state.is_correct = None
     if "section_filter" not in st.session_state:
         st.session_state.section_filter = "All Sections"
-    if "current_q_idx" not in st.session_state:
-        st.session_state.current_q_idx = random.randrange(len(QUESTIONS))
+    # Shuffled queue: guarantees every question appears once before reshuffling
+    if "queue" not in st.session_state:
+        pool = list(range(len(QUESTIONS)))
+        random.shuffle(pool)
+        st.session_state.queue = pool
+        st.session_state.queue_pos = 0
+
+
+def build_queue(active_pool):
+    """Build (or rebuild) the shuffled queue from active_pool."""
+    pool = active_pool.copy()
+    random.shuffle(pool)
+    st.session_state.queue = pool
+    st.session_state.queue_pos = 0
 
 
 # ─────────────────────────────────────────────
@@ -742,15 +754,20 @@ def main():
             st.session_state.section_filter = new_filter
             active = get_active_pool(new_filter)
             if active:
-                st.session_state.current_q_idx = random.choice(active)
+                build_queue(active)
             st.session_state.answered = False
             st.session_state.user_answer = None
             st.session_state.is_correct = None
             st.rerun()
 
         st.divider()
+        # Round progress
+        q_num = st.session_state.queue_pos + 1
+        q_total = len(st.session_state.queue)
+        st.caption(f"Question **{q_num}** of **{q_total}** in this round")
+        st.progress(q_num / q_total)
+
         st.metric("✅ Score", f"{st.session_state.score} / {st.session_state.graded_count}")
-        st.metric("📖 Questions Seen", st.session_state.total_seen)
 
         if st.session_state.graded_count > 0:
             pct = int(100 * st.session_state.score / st.session_state.graded_count)
@@ -759,7 +776,7 @@ def main():
         st.divider()
         if st.button("🔀 Reset & Shuffle", use_container_width=True):
             for key in ["answered", "score", "graded_count", "total_seen",
-                        "user_answer", "is_correct", "current_q_idx"]:
+                        "user_answer", "is_correct", "queue", "queue_pos"]:
                 st.session_state.pop(key, None)
             st.rerun()
 
@@ -769,13 +786,17 @@ def main():
         st.warning("No questions in this section.")
         return
 
-    if st.session_state.current_q_idx not in active_pool:
-        st.session_state.current_q_idx = random.choice(active_pool)
+    # Rebuild queue if it contains indices outside the active pool
+    # (e.g. after a section filter change that wasn't caught above)
+    if not st.session_state.queue or \
+            not all(i in active_pool for i in st.session_state.queue):
+        build_queue(active_pool)
         st.session_state.answered = False
         st.session_state.user_answer = None
         st.session_state.is_correct = None
 
-    q = QUESTIONS[st.session_state.current_q_idx]
+    current_q_idx = st.session_state.queue[st.session_state.queue_pos]
+    q = QUESTIONS[current_q_idx]
 
     # ── Question display ──────────────────────
     st.markdown("### " + q["question"])
@@ -819,36 +840,44 @@ def get_active_pool(section_filter):
 
 
 def go_next(active_pool):
-    st.session_state.current_q_idx = random.choice(active_pool)
+    """Advance to the next position in the shuffled queue.
+    When the queue is exhausted, reshuffle for the next round."""
+    next_pos = st.session_state.queue_pos + 1
+    if next_pos >= len(st.session_state.queue):
+        # All questions in this round done — reshuffle for next round
+        build_queue(active_pool)
+    else:
+        st.session_state.queue_pos = next_pos
     st.session_state.answered = False
     st.session_state.user_answer = None
     st.session_state.is_correct = None
 
 
 def render_input(q):
+    key_suffix = st.session_state.queue_pos  # unique per position in queue
     if q["type"] == "tf":
         choice = st.radio("Select your answer:", ["True", "False"],
-                          key=f"tf_{st.session_state.current_q_idx}", index=None)
+                          key=f"tf_{key_suffix}", index=None)
         st.session_state.user_answer = choice
 
     elif q["type"] == "mcq":
         choice = st.radio("Select your answer:", list(q["options"].keys()),
                           format_func=lambda k: f"{k}. {q['options'][k]}",
-                          key=f"mcq_{st.session_state.current_q_idx}", index=None)
+                          key=f"mcq_{key_suffix}", index=None)
         st.session_state.user_answer = choice
 
     elif q["type"] == "multi":
         st.caption("Select ALL that apply:")
         selected = []
         for k, v in q["options"].items():
-            if st.checkbox(f"**{k}.** {v}", key=f"multi_{st.session_state.current_q_idx}_{k}"):
+            if st.checkbox(f"**{k}.** {v}", key=f"multi_{key_suffix}_{k}"):
                 selected.append(k)
         st.session_state.user_answer = selected
 
     elif q["type"] == "free":
         st.info("✍️ Free-response question. Write your answer below, then click **Check Answer** to see the model answer.")
         response = st.text_area("Your answer:", height=150,
-                                key=f"free_{st.session_state.current_q_idx}",
+                                key=f"free_{key_suffix}",
                                 placeholder="Type your answer here...")
         st.session_state.user_answer = response
 
