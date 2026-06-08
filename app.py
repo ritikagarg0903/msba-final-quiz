@@ -888,6 +888,17 @@ def go_back():
     st.session_state.is_correct = None
 
 
+def get_shuffled_option_keys(q, key_suffix):
+    """Return option keys in a stable shuffled order for this queue position.
+    The shuffle is cached so reruns don't re-randomize mid-question."""
+    cache_key = f"opt_order_{key_suffix}"
+    if cache_key not in st.session_state:
+        keys = list(q["options"].keys())
+        random.shuffle(keys)
+        st.session_state[cache_key] = keys
+    return st.session_state[cache_key]
+
+
 def render_input(q):
     key_suffix = st.session_state.queue_pos  # unique per position in queue
     if q["type"] == "tf":
@@ -896,15 +907,18 @@ def render_input(q):
         st.session_state.user_answer = choice
 
     elif q["type"] == "mcq":
-        choice = st.radio("Select your answer:", list(q["options"].keys()),
+        shuffled_keys = get_shuffled_option_keys(q, key_suffix)
+        choice = st.radio("Select your answer:", shuffled_keys,
                           format_func=lambda k: f"{k}. {q['options'][k]}",
                           key=f"mcq_{key_suffix}", index=None)
         st.session_state.user_answer = choice
 
     elif q["type"] == "multi":
         st.caption("Select ALL that apply:")
+        shuffled_keys = get_shuffled_option_keys(q, key_suffix)
         selected = []
-        for k, v in q["options"].items():
+        for k in shuffled_keys:
+            v = q["options"][k]
             if st.checkbox(f"**{k}.** {v}", key=f"multi_{key_suffix}_{k}"):
                 selected.append(k)
         st.session_state.user_answer = selected
